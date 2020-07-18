@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func main() {
+func mainCompTypes() {
 	arr := [...]int{1, 2, 3, 4, 5}
 	reverseWithSlice(arr[:])
 	fmt.Println(arr)

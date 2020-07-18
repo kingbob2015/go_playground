@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
+
+type test string
 
 func main() {
 	fmt.Println("Hello World")

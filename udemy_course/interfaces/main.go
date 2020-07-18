@@ -19,9 +19,11 @@ func main() {
 	//Also we can't do overloading for parameter functions so receiver functions are needed for a type of overloading
 	printGreeting(&eb)
 	printGreeting(&sb)
-
+	//Go automatically adds the &sb to call the pointer receiver function on a value
+	sb.setTest("Whatsup")
 	setTestCall(&eb)
 	fmt.Println(eb)
+	fmt.Println(sb)
 }
 
 func printGreeting(b bot) {
@@ -36,14 +38,16 @@ func (eb *englishBot) setTest(s string) {
 	eb.test = s
 }
 
+//If a receiver function is a pointer, it only works on pointers
 func (sb *spanishBot) setTest(s string) {
 	sb.test = s
 }
 
-func (*englishBot) getGreeting() string {
+//If a receiver function is a value it works on values and pointers
+func (englishBot) getGreeting() string {
 	return "Hello"
 }
 
-func (*spanishBot) getGreeting() string {
+func (spanishBot) getGreeting() string {
 	return "Hola"
 }
