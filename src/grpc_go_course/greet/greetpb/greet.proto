@@ -32,6 +32,14 @@ message LongGreetResponse{
     string result = 1;
 }
 
+message GreetEveryoneRequest{
+    Greeting greeting = 1;
+}
+
+message GreetEveryoneResponse{
+    string result = 1;
+}
+
 service GreetService{
     // Unary
     //convetion of rpc (remote procedure call): something (somethingRequest) returns (somethingResponse)
@@ -42,4 +50,7 @@ service GreetService{
 
     // Clinet Streaming
     rpc LongGreet(stream LongGreetRequest) returns (LongGreetResponse){}
+
+    // BiDirectional Streaming
+    rpc GreetEveryone(stream GreetEveryoneRequest) returns (stream GreetEveryoneResponse){}
 }

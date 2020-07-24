@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"grpc_go_course/calculator/calcpb"
 	"io"
 	"log"
+	"math"
 	"net"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type server struct{}
@@ -61,6 +66,42 @@ func (*server) ComputeAverage(stream calcpb.CalculatorService_ComputeAverageServ
 		sum += int(req.GetNum())
 		totalNums++
 	}
+}
+
+func (*server) FindMaxmimum(stream calcpb.CalculatorService_FindMaxmimumServer) error {
+	max := int64(0)
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			log.Fatalf("Error while reading stream: %v", err)
+			return err
+		}
+		num := req.GetNum()
+		if num > max {
+			max = num
+			stream.Send(&calcpb.FindMaxmimumResponse{
+				Result: max,
+			})
+		}
+	}
+}
+
+func (*server) SquareRoot(ctx context.Context, req *calcpb.SquareRootRequest) (*calcpb.SquareRootResponse, error) {
+	num := req.GetNum()
+
+	if num < 0 {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Received a negative number: %v", num),
+		)
+	}
+
+	return &calcpb.SquareRootResponse{
+		Result: math.Sqrt(float64(num)),
+	}, nil
 }
 
 func main() {

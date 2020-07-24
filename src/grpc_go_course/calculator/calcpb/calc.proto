@@ -28,8 +28,29 @@ message ComputeAverageResponse {
     float result = 1;
 }
 
+message FindMaxmimumRequest{
+    int64 num = 1;
+}
+
+message FindMaxmimumResponse{
+    int64 result = 1;
+}
+
+message SquareRootRequest{
+    int32 num = 1;
+}
+
+message SquareRootResponse{
+    double result = 1;
+}
+
 service CalculatorService{
     rpc Sum(SumRequest) returns (SumResponse) {};
     rpc PrimeNumberDecomposition(PrimeNumberDecompositionRequest) returns (stream PrimeNumberDecompositionResponse){};
     rpc ComputeAverage(stream ComputeAverageRequest) returns (ComputeAverageResponse){}
+    rpc FindMaxmimum(stream FindMaxmimumRequest) returns (stream FindMaxmimumResponse){}
+    // error handling
+    // this rpc will throw an exception if the sent number is negative
+    // the error being sent is of type INVALID_ARGUMENT
+    rpc SquareRoot(SquareRootRequest) returns (SquareRootResponse) {}
 }
