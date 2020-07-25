@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc"
@@ -130,6 +131,11 @@ func main() {
 
 	s := grpc.NewServer(opts...)
 	greetpb.RegisterGreetServiceServer(s, &server{})
+
+	//enables reflection to discover APIs, can use evans cli to do this
+	//Evans CLI can discover and use the APIs so you don't actually need client code to test it
+	//In client streaming can stop it with ctrl+D to send shutdown signal
+	reflection.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve %v", err)
