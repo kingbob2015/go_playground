@@ -33,6 +33,7 @@ type blogItem struct {
 type server struct{}
 
 func (*server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*blogpb.CreateBlogResponse, error) {
+	fmt.Println("Creating a blog post...")
 	blog := req.GetBlog()
 
 	data := blogItem{
@@ -64,6 +65,138 @@ func (*server) CreateBlog(ctx context.Context, req *blogpb.CreateBlogRequest) (*
 	}, nil
 }
 
+func (*server) ReadBlog(ctx context.Context, req *blogpb.ReadBlogRequest) (*blogpb.ReadBlogResponse, error) {
+	fmt.Println("Read blog request")
+	blogID := req.GetBlogId()
+	oid, err := primitive.ObjectIDFromHex(blogID)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("You did not send us a parsable ID: %v", err),
+		)
+	}
+	// create an empty struct
+	data := &blogItem{}
+
+	filter := primitive.M{"_id": oid}
+	res := collection.FindOne(ctx, filter)
+	if err := res.Decode(data); err != nil {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+	return &blogpb.ReadBlogResponse{
+		Blog: dataToBlogPb(data),
+	}, nil
+}
+
+func (*server) UpdateBlog(ctx context.Context, req *blogpb.UpdateBlogRequest) (*blogpb.UpdateBlogResponse, error) {
+	fmt.Println("Update blog request")
+	blog := req.GetBlog()
+	oid, err := primitive.ObjectIDFromHex(blog.GetId())
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Cannot parse ID: %v", err),
+		)
+	}
+	data := &blogItem{}
+	filter := primitive.M{"_id": oid}
+	res := collection.FindOne(ctx, filter)
+	if err := res.Decode(data); err != nil {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+
+	data.AuthorID = blog.GetAuthorId()
+	data.Content = blog.GetContent()
+	data.Title = blog.GetTitle()
+
+	_, err = collection.ReplaceOne(context.Background(), filter, data)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Cannot update object in MongoDB: %v", err),
+		)
+	}
+	return &blogpb.UpdateBlogResponse{
+		Blog: dataToBlogPb(data),
+	}, nil
+}
+
+func (*server) DeleteBlog(ctx context.Context, req *blogpb.DeleteBlogRequest) (*blogpb.DeleteBlogResponse, error) {
+	fmt.Println("Delete blog request")
+	oid, err := primitive.ObjectIDFromHex(req.GetBlogId())
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Cannot parse ID: %v", err),
+		)
+	}
+	filter := primitive.M{"_id": oid}
+	res, err := collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Cannot delete object in MongoDB: %v", err),
+		)
+	}
+	if res.DeletedCount == 0 {
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("Cannot find blog with specified ID: %v", err),
+		)
+	}
+
+	return &blogpb.DeleteBlogResponse{
+		BlogId: req.GetBlogId(),
+	}, nil
+}
+
+func (*server) ListBlog(req *blogpb.ListBlogRequest, stream blogpb.BlogService_ListBlogServer) error {
+	fmt.Println("List blog request")
+	cur, err := collection.Find(context.Background(), primitive.D{})
+	if err != nil {
+		return status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Unknown internal error: %v", err),
+		)
+	}
+	defer cur.Close(context.Background())
+	for cur.Next(context.Background()) {
+		data := &blogItem{}
+		err := cur.Decode(data)
+		if err != nil {
+			return status.Errorf(
+				codes.Internal,
+				fmt.Sprintf("Unknown decoding error: %v", err),
+			)
+		}
+		stream.Send(&blogpb.ListBlogResponse{
+			Blog: dataToBlogPb(data),
+		})
+	}
+	if err = cur.Err(); err != nil {
+		return status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Unknown decoding error: %v", err),
+		)
+	}
+	return nil
+}
+
+func dataToBlogPb(data *blogItem) *blogpb.Blog {
+	return &blogpb.Blog{
+		Id:       data.ID.Hex(),
+		AuthorId: data.AuthorID,
+		Content:  data.Content,
+		Title:    data.Title,
+	}
+}
+
 func main() {
 	// if we crash the go code, we get the file name and line number in error message when we use log
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -93,6 +226,7 @@ func main() {
 	opts := []grpc.ServerOption{}
 	s := grpc.NewServer(opts...)
 	blogpb.RegisterBlogServiceServer(s, &server{})
+
 	reflection.Register(s)
 
 	go func() {
